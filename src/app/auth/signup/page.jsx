@@ -14,7 +14,7 @@ export default function RegistrationPage() {
 
   // Redirect users if a session is active
   if (session) {
-    router.push("/");
+    router.push("/dashboard");
     return null;
   }
 
@@ -207,7 +207,7 @@ export default function RegistrationPage() {
         <p className="text-center text-sm text-slate-400 mt-8">
           Already have an account?{" "}
           <Link
-            href="/login"
+            href="/auth/signin"
             className="font-semibold text-orange-500 hover:text-orange-600 transition-colors"
           >
             Login
