@@ -6,12 +6,15 @@ import Link from "next/link";
 import { 
   LayoutDashboard, 
   BookOpen, 
-  ChefHat, 
-  Bookmark, 
-  Settings, 
+  PlusCircle, 
+  Heart, 
+  User, 
   Menu,
   Home,
-  LogOut
+  LogOut,
+  Users,
+  ShieldAlert,
+  CreditCard
 } from "lucide-react"; 
 import { Button, Drawer } from "@heroui/react";
 import { authClient } from "@/app/lib/auth-client";
@@ -22,14 +25,33 @@ export function DashboardSideBar() {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const navItems = [
-    { icon: Home, label: "Back to Home", href: "/" }, // Added Home Route
-    { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
-    { icon: BookOpen, label: "My Recipes", href: "/dashboard/recipes" },
-    { icon: ChefHat, label: "Meal Planner", href: "/dashboard/planner" },
-    { icon: Bookmark, label: "Saved Recipes", href: "/dashboard/saved" },
-    { icon: Settings, label: "Settings", href: "/dashboard/settings" },
+  // Updated Admin navigation items with unique icons and "Back to Home" at the end
+  const adminNavItems = [
+    { icon: LayoutDashboard, label: "Overview", href: "/dashboard/admin/overview" },
+    { icon: Users, label: "Manage User", href: "/dashboard/admin/manage-user" },
+    { icon: BookOpen, label: "Manage Recipes", href: "/dashboard/admin/manage-recipes" },
+    { icon: ShieldAlert, label: "Reports", href: "/dashboard/admin/reports" },
+    { icon: Home, label: "Back to Home", href: "/" },
   ];
+
+  // Updated User navigation items with unique icons and "Back to Home" at the end
+  const userNavItems = [
+    { icon: LayoutDashboard, label: "Overview", href: "/dashboard/user/overview" },
+    { icon: BookOpen, label: "My Recipes", href: "/dashboard/user/manage-user" },
+    { icon: PlusCircle, label: "Add Recipes", href: "/dashboard/user/add-recipe" },
+    { icon: Heart, label: "My Favorites", href: "/dashboard/user/myfavorites" },
+    { icon: CreditCard, label: "My Purchased Recipes", href: "/dashboard/user/purchased-recipes" },
+    { icon: User, label: "Profile", href: "/dashboard/user/purchased-recipes" }, // Correct this path to profile if needed
+    { icon: Home, label: "Back to Home", href: "/" },
+  ];
+
+  const navlinkMap = {
+    admin: adminNavItems, 
+    user: userNavItems
+  };
+
+  // Replace "admin" dynamically with user role state when available
+  const navItems = navlinkMap["admin"]; 
 
   // Sign out handler function
   const handleSignOut = async () => {
