@@ -20,7 +20,8 @@ import { Button, Drawer } from "@heroui/react";
 import { authClient } from "@/app/lib/auth-client";
 import { toast } from "react-toastify";
 
-export function DashboardSideBar() {
+export function DashboardSideBar({userRole}) {
+  console.log(userRole, "From sidebar");
   const pathname = usePathname();
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -28,7 +29,7 @@ export function DashboardSideBar() {
   // Updated Admin navigation items with unique icons and "Back to Home" at the end
   const adminNavItems = [
     { icon: LayoutDashboard, label: "Overview", href: "/dashboard/admin/overview" },
-    { icon: Users, label: "Manage User", href: "/dashboard/admin/manage-user" },
+    { icon: Users, label: "Manage User", href: "/dashboard/admin/manage-users" },
     { icon: BookOpen, label: "Manage Recipes", href: "/dashboard/admin/manage-recipes" },
     { icon: ShieldAlert, label: "Reports", href: "/dashboard/admin/reports" },
     { icon: Home, label: "Back to Home", href: "/" },
@@ -51,7 +52,7 @@ export function DashboardSideBar() {
   };
 
   // Replace "admin" dynamically with user role state when available
-  const navItems = navlinkMap["admin"]; 
+  const navItems = navlinkMap[userRole] || userNavItems; 
 
   // Sign out handler function
   const handleSignOut = async () => {

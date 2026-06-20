@@ -4,13 +4,14 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Button, Spinner } from "@heroui/react";
 import Image from "next/image";
-import { authClient } from "@/app/lib/auth-client"; 
-import { useRouter } from "next/navigation"; 
+import { authClient } from "@/app/lib/auth-client";
+import { useRouter } from "next/navigation";
 
 export default function Navbar() {
-  const { data: session, isPending } = authClient.useSession(); 
+  const { data: session, isPending } = authClient.useSession();
   const user = session?.user;
-  const router = useRouter(); 
+  const userRole = user?.role;
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -44,11 +45,20 @@ export default function Navbar() {
     { label: "Pricing", href: "/pricing" },
   ];
 
+  // Dynamic dashboard destination helper
+  const dashboardHref =
+    userRole === "admin"
+      ? "/dashboard/admin/overview"
+      : "/dashboard/user/overview";
+  const profileHref =
+    userRole === "admin"
+      ? "/dashboard/admin/profile"
+      : "/dashboard/user/profile";
+
   return (
     <nav className="sticky top-0 z-50 bg-white w-full border-b border-gray-100 py-3">
       <div className="mx-auto container max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm px-6 h-20 flex items-center justify-between">
-
           {/* Logo Wrapper */}
           <Link href="/" className="flex items-center h-full py-1.5 gap-2">
             <Image
@@ -104,29 +114,55 @@ export default function Navbar() {
                     {isDropdownOpen && (
                       <div className="absolute right-0 mt-2 w-48 rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 z-50">
                         <div className="px-4 py-3 border-b border-gray-100">
-                          <p className="text-xs text-slate-400 truncate">Signed in as</p>
-                          <p className="text-sm font-semibold text-slate-800 truncate">{user.name}</p>
+                          <p className="text-xs text-slate-400 truncate">
+                            Signed in as
+                          </p>
+                          <p className="text-sm font-semibold text-slate-800 truncate">
+                            {user.name}
+                          </p>
                         </div>
 
                         <div className="py-1">
                           <Link
-                            href="/profile"
+                            href={profileHref}
                             onClick={() => setIsDropdownOpen(false)}
                             className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4 text-slate-400"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                              />
                             </svg>
                             Profile
                           </Link>
 
                           <Link
-                            href="/dashboard"
+                            href={dashboardHref}
                             onClick={() => setIsDropdownOpen(false)}
                             className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4 text-slate-400"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                              />
                             </svg>
                             Dashboard
                           </Link>
@@ -140,8 +176,19 @@ export default function Navbar() {
                             }}
                             className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                              />
                             </svg>
                             Log out
                           </button>
@@ -155,7 +202,7 @@ export default function Navbar() {
                       href="/auth/signin"
                       className="text-sm font-medium text-orange-500 transition-colors hover:text-orange-600"
                     >
-                      Sign In
+                      Sign Im
                     </Link>
                     <Link
                       href="/auth/signup"
@@ -174,12 +221,34 @@ export default function Navbar() {
               className="flex items-center justify-center rounded-lg p-2 text-slate-700 hover:bg-orange-50 hover:text-orange-500 md:hidden transition-colors"
             >
               {isMenuOpen ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
                 </svg>
               )}
             </button>
@@ -217,16 +286,31 @@ export default function Navbar() {
                       className="rounded-full object-cover border border-gray-100"
                     />
                     <div className="flex flex-col">
-                      <span className="text-slate-800 font-semibold text-sm">{user.name}</span>
-                      <span className="text-slate-400 text-xs truncate max-w-[180px]">{user.email}</span>
+                      <span className="text-slate-800 font-semibold text-sm">
+                        {user.name}
+                      </span>
+                      <span className="text-slate-400 text-xs truncate max-w-[180px]">
+                        {user.email}
+                      </span>
                     </div>
                   </div>
-                  <Link href="/profile" onClick={() => setIsMenuOpen(false)} className="block text-slate-600 hover:text-orange-500 text-sm font-medium transition-colors">
+
+                  <Link
+                    href={profileHref}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block text-slate-600 hover:text-orange-500 text-sm font-medium transition-colors"
+                  >
                     Profile
                   </Link>
-                  <Link href="/dashboard" onClick={() => setIsMenuOpen(false)} className="block text-slate-600 hover:text-orange-500 text-sm font-medium transition-colors">
+
+                  <Link
+                    href={dashboardHref}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block text-slate-600 hover:text-orange-500 text-sm font-medium transition-colors"
+                  >
                     Dashboard
                   </Link>
+
                   <button
                     onClick={() => {
                       setIsMenuOpen(false);
@@ -239,17 +323,17 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <Link 
-                    href="/auth/signin" 
+                  <Link
+                    href="/auth/signin"
                     className="text-orange-500 hover:text-orange-600 font-medium text-center py-2 transition-colors"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Sign In
                   </Link>
-                  <Button 
-                    as={Link} 
-                    href="/auth/signup" 
-                    radius="lg" 
+                  <Button
+                    as={Link}
+                    href="/auth/signup"
+                    radius="lg"
                     className="w-full bg-slate-900 text-white font-bold shadow-sm hover:bg-slate-800 transition-colors"
                     onClick={() => setIsMenuOpen(false)}
                   >

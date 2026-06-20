@@ -5,10 +5,17 @@ import React, { useEffect } from "react";
 import { authClient } from "../lib/auth-client";
 import { usePathname, useRouter } from "next/navigation"; // 1. Import useRouter
 
+
 export default function DashboardLayout({ children }) {
   const router = useRouter();
   const currentPath = usePathname();
-  const { data: session, isPending } = authClient.useSession();
+  const { data:session, isPending } = authClient.useSession();
+
+  const role= session?.user?.role
+
+  console.log(session?.user)
+  console.log(role);
+
   
   useEffect(() => {
     
@@ -32,7 +39,7 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-slate-50/50">
-      <DashboardSideBar />
+      <DashboardSideBar userRole= {role}/>
       <main className="flex-1 p-4 md:p-8 lg:p-10 max-w-7xl mx-auto w-full">
         {children} 
       </main>
