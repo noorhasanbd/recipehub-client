@@ -28,6 +28,8 @@ export default function ManageUsers() {
       try {
         setIsLoading(true);
         const data = await getAllUser();
+
+        console.log(data, "user data")
         setUsers(Array.isArray(data) ? data : data?.data || []);
       } catch (err) {
         console.error("Error loading users:", err);

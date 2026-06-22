@@ -44,7 +44,7 @@ export default function RecipeForm({ initialData = null, onSubmit, onCancel }) {
     
     const formData = new FormData(e.target);
     
-    // Assembles your exact 11-key schema blueprint structure
+    // Assembles your exact schema blueprint structure smoothly
     const payload = {
       recipeName: formData.get("recipeName"),
       recipeImage: formData.get("recipeImage"),
@@ -54,6 +54,12 @@ export default function RecipeForm({ initialData = null, onSubmit, onCancel }) {
       preparationTime: Number(formData.get("preparationTime")),
       ingredients: ingredients.filter(i => i.trim() !== ""),
       instructions: instructions.filter(i => i.trim() !== ""),
+      
+      // 🌟 FIX: Preserves state parameters instead of losing them on updates
+      isFeatured: initialData ? initialData.isFeatured : false,
+      status: initialData ? initialData.status : "Published",
+      likesCount: initialData ? initialData.likesCount : 0,
+
       // Preserving authorship profiles
       authorId: initialData?.authorId || "usr_admin_77",
       authorName: initialData?.authorName || "Chef Administrator",
