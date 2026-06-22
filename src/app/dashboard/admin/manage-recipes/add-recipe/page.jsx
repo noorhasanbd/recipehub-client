@@ -4,7 +4,7 @@ import { useRouter, usePathname } from "next/navigation";
 import RecipeForm from "@/components/admin/RecipeForm";
 import { createRecipe } from "@/app/lib/actions/recipeActions/manageRecipes";
 import { authClient } from "@/app/lib/auth-client";
-
+import { toast } from "react-toastify"; // 🌟 Import Toastify engine
 
 export default function AddRecipePage() {
   const router = useRouter();
@@ -14,10 +14,11 @@ export default function AddRecipePage() {
   const { data: session, isPending } = authClient.useSession();
 
   const handleCreate = async (recipePayload) => {
-    try {
+    // 1. Setup the wrapper promise for Toastify execution
+    const runSubmission = async () => {
       console.log("Form content fields gathered from RecipeForm:", recipePayload);
 
-      // 🌟 Explicitly attach client session metadata into the final data block
+      // Explicitly attach client session metadata into the final data block
       const explicitPayload = {
         ...recipePayload,
         clientUser: session ? {
@@ -29,16 +30,26 @@ export default function AddRecipePage() {
 
       const result = await createRecipe(explicitPayload);
 
-      if (result.success) {
-        alert("🎉 Recipe successfully published to MongoDB!");
-        router.back(); 
+      if (result && result.success) {
+        // Send user back to the workspace panel on victory
+        router.back();
+        return result;
       } else {
-        alert(`❌ Database submission error: ${result.error}`);
+        // Force the promise into a rejected state to catch the error string
+        throw new Error(result.error || "Database rejected row insertion.");
       }
-    } catch (error) {
-      console.error("Critical submission failure:", error);
-      alert("An unexpected error occurred while saving the recipe.");
-    }
+    };
+
+    // 2. Fire the asynchronous reactive promise layout
+    toast.promise(runSubmission(), {
+      pending: "Publishing your new recipe to MongoDB...",
+      success: "🎉 Recipe successfully published!",
+      error: {
+        render({ data }) {
+          return `❌ Submission error: ${data.message}`;
+        }
+      }
+    });
   };
 
   // 1. Loading state while checking security tokens

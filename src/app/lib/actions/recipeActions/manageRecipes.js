@@ -1,20 +1,41 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/recipes";
 
 /**
+ * Secure Helper: Extracts Better Auth session token from server cookies 
+ * and reconstructs standard Cookie headers for the Express server middleware.
+ */
+async function getAuthHeaders() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("better-auth.session_token")?.value;
+  
+  const headers = {
+    "Content-Type": "application/json",
+  };
+
+  if (token) {
+    // 🌟 Crucial Alignment: Passes the token inside the Cookie string so 
+    // Express's auth.api.getSession can verify it natively without cross-origin issues.
+    headers["Cookie"] = `better-auth.session_token=${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  
+  return headers;
+}
+
+/**
  * 1. CREATE: Add a new recipe using explicit client session mapping
- * @param {Object} recipeData - Complete data block containing form inputs and clientUser details
  */
 export async function createRecipe(recipeData) {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(API_BASE_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: headers,
       body: JSON.stringify(recipeData), 
     });
 
@@ -37,10 +58,8 @@ export async function createRecipe(recipeData) {
  */
 export async function getAllRecipes(filters = {}) {
   try {
-    // 1. Map parameters to an elegant query string setup
     const queryParams = new URLSearchParams();
     
-    // Fallback pagination parameter defaults if not supplied by UI component
     const cleanFilters = {
       page: 1,
       limit: 5,
@@ -61,9 +80,6 @@ export async function getAllRecipes(filters = {}) {
       throw new Error(result.error || "Failed to retrieve recipe pages.");
     }
 
-    // Assumes your backend API maps output to structured envelopes matching your frontend:
-    // result.data -> array of documents
-    // result.pagination -> { currentPage, totalPages, totalItems, limit }
     return { 
       success: true, 
       data: result.data || [], 
@@ -101,9 +117,10 @@ export async function getRecipeById(id) {
  */
 export async function updateRecipe(id, updatedFields) {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: headers,
       body: JSON.stringify(updatedFields), 
     });
 
@@ -139,7 +156,12 @@ export async function likeRecipe(id) {
  */
 export async function deleteRecipe(id) {
   try {
-    const response = await fetch(`${API_BASE_URL}/${id}`, { method: "DELETE" });
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/${id}`, { 
+      method: "DELETE",
+      headers: headers 
+    });
+    
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Failed removing document.");
 
@@ -150,3 +172,39 @@ export async function deleteRecipe(id) {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * 7. READ: Gather recipes attached to a specific userId
+ */
+export const getRecipeByUserId = async (userId) => {
+  try {
+    if (!userId) {
+      console.warn("Action [getRecipeByUserId] Warning: No userId provided.");
+      return { success: false, data: [] };
+    }
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:5000"}/api/recipes/user/${userId}`, {
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      throw new Error(`Server returned a ${res.status} error code.`);
+    }
+
+    const result = await res.json();
+
+    if (result && Array.isArray(result)) {
+      return { success: true, data: result };
+    }
+    
+    if (result && result.success && Array.isArray(result.data)) {
+      return result;
+    }
+
+    return { success: true, data: result.recipes || [] };
+    
+  } catch (error) {
+    console.error(`Action [getRecipeByUserId] Error for ID ${userId}:`, error.message);
+    return { success: false, data: [], error: error.message };
+  }
+};

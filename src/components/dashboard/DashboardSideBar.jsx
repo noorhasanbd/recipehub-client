@@ -38,7 +38,7 @@ export function DashboardSideBar({userRole}) {
   // Updated User navigation items with unique icons and "Back to Home" at the end
   const userNavItems = [
     { icon: LayoutDashboard, label: "Overview", href: "/dashboard/user/overview" },
-    { icon: BookOpen, label: "My Recipes", href: "/dashboard/user/manage-user" },
+    { icon: BookOpen, label: "My Recipes", href: "/dashboard/user/my-recipes" },
     { icon: PlusCircle, label: "Add Recipes", href: "/dashboard/user/add-recipe" },
     { icon: Heart, label: "My Favorites", href: "/dashboard/user/myfavorites" },
     { icon: CreditCard, label: "My Purchased Recipes", href: "/dashboard/user/purchased-recipes" },
