@@ -146,7 +146,7 @@ export default function MyRecipesPage() {
           <p className="text-xs text-slate-400 mt-0.5">Filter, audit, or alter records directly inside your system inventory.</p>
         </div>
         <Link 
-          href="/dashboard/user/recipes/new" 
+          href="/dashboard/user/add-recipe" 
           className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl transition-colors shadow-sm shadow-orange-500/10"
         >
           <Plus className="w-4 h-4" /> Add New Recipe

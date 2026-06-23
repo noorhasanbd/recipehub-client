@@ -42,7 +42,7 @@ export function DashboardSideBar({userRole}) {
     { icon: PlusCircle, label: "Add Recipes", href: "/dashboard/user/add-recipe" },
     { icon: Heart, label: "My Favorites", href: "/dashboard/user/myfavorites" },
     { icon: CreditCard, label: "My Purchased Recipes", href: "/dashboard/user/purchased-recipes" },
-    { icon: User, label: "Profile", href: "/dashboard/user/purchased-recipes" }, // Correct this path to profile if needed
+    { icon: User, label: "Profile", href: "/dashboard/my-profile" }, // Correct this path to profile if needed
     { icon: Home, label: "Back to Home", href: "/" },
   ];
 

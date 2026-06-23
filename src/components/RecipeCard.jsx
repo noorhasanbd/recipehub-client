@@ -4,8 +4,10 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@heroui/react";
 import { Clock, BarChart3, Heart, MoreVertical, ShieldAlert, Ban, AlertTriangle } from "lucide-react";
+import { createRecipeReport } from "@/app/lib/actions/recipeActions/UserRecipeReport";
+// 🌟 IMPORTED: Real server action file to handle the secure backend handshake
 
-// 🌟 ADDED: 'isLoggedIn' boolean prop passed down from the parent page/layout
+
 export default function RecipeCard({ recipe, isLoggedIn = false }) {
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(recipe.likesCount || 0);
@@ -42,12 +44,23 @@ export default function RecipeCard({ recipe, isLoggedIn = false }) {
     setIsMenuOpen(!isMenuOpen);
   };
 
-  const handleReportRecipe = (e, reportReason) => {
+  // 🌟 UPDATED: Asynchronous handler fires data payload off to Server Action layer cleanly
+  const handleReportRecipe = async (e, reportReason) => {
     e.preventDefault();
     e.stopPropagation();
     setIsMenuOpen(false);
     
-    alert(`Thank you for keeping our platform safe. This recipe has been flagged for: "${reportReason}".`);
+    try {
+      const result = await createRecipeReport(recipe._id, recipe.recipeName, reportReason);
+      
+      if (result.success) {
+        alert("Thank you for keeping our platform safe. This recipe has been flagged for review.");
+      } else {
+        alert(`Report failed: ${result.error}`);
+      }
+    } catch (err) {
+      alert("Network exception occurred sending report parameters down context lines.");
+    }
   };
 
   return (
@@ -63,7 +76,7 @@ export default function RecipeCard({ recipe, isLoggedIn = false }) {
             {recipe.category || "Recipe"}
           </span>
 
-          {/* 🌟 CONDITIONAL RENDER: Only display three-dot menu option if user is logged in */}
+          {/* Only display three-dot menu option if user is logged in */}
           {isLoggedIn && (
             <div className="absolute top-3 right-3 z-20" ref={menuRef}>
               <button

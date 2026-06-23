@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { Plus, Trash2, Image, Clock } from "lucide-react";
+import { authClient } from "@/app/lib/auth-client";
+// 🌟 THE FIX: Import your frontend Better Auth client instance
+
 
 export default function RecipeForm({ initialData = null, onSubmit, onCancel }) {
   // Check if we are modifying an existing recipe or staging a blank canvas
@@ -10,6 +13,20 @@ export default function RecipeForm({ initialData = null, onSubmit, onCancel }) {
   // Track dynamic list configurations inside decoupled client arrays
   const [ingredients, setIngredients] = useState([""]);
   const [instructions, setInstructions] = useState([""]);
+  
+  // Local state to safely hold user session attributes on the client side
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Fetch the active user session data cleanly on mount
+  useEffect(() => {
+    async function fetchUserSession() {
+      const session = await authClient.getSession();
+      if (session?.data?.user) {
+        setCurrentUser(session.data.user);
+      }
+    }
+    fetchUserSession();
+  }, []);
 
   // Pre-seed array contexts if data is supplied via editing wrappers
   useEffect(() => {
@@ -55,15 +72,23 @@ export default function RecipeForm({ initialData = null, onSubmit, onCancel }) {
       ingredients: ingredients.filter(i => i.trim() !== ""),
       instructions: instructions.filter(i => i.trim() !== ""),
       
-      // 🌟 FIX: Preserves state parameters instead of losing them on updates
+      // Preserves state parameters instead of losing them on updates
       isFeatured: initialData ? initialData.isFeatured : false,
       status: initialData ? initialData.status : "Published",
       likesCount: initialData ? initialData.likesCount : 0,
 
-      // Preserving authorship profiles
-      authorId: initialData?.authorId || "usr_admin_77",
-      authorName: initialData?.authorName || "Chef Administrator",
-      authorEmail: initialData?.authorEmail || "admin@recipehub.com"
+      // 🌟 THE CRITICAL SECURITY CORRECTION:
+      // Uses the active user profile data, falling back to admin only if no session exists.
+      authorId: initialData?.authorId || currentUser?.id || "usr_admin_77",
+      authorName: initialData?.authorName || currentUser?.name || "Chef Administrator",
+      authorEmail: initialData?.authorEmail || currentUser?.email || "admin@recipehub.com",
+
+      // Pass down user session mapping to backend payload for validation
+      clientUser: currentUser ? {
+        id: currentUser.id,
+        name: currentUser.name,
+        email: currentUser.email
+      } : null
     };
 
     onSubmit(payload);

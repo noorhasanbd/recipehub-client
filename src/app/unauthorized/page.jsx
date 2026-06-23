@@ -51,7 +51,9 @@ export default function UnauthorizedPage() {
           </Link>
 
           <button
-            onClick={() => router.back()}
+            onClick={ () =>
+              typeof window !== "undefined" && window.history.go(-2)
+            }
             className="w-full border border-slate-200 bg-white text-slate-700 font-semibold py-3 rounded-xl transition-all hover:bg-slate-50 active:scale-[0.98] text-sm flex items-center justify-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />

@@ -4,9 +4,10 @@ import React, { useState, useEffect } from "react";
 import { Search, Loader2, SlidersHorizontal } from "lucide-react";
 import { getAllRecipes } from "@/app/lib/actions/recipeActions/manageRecipes";
 import RecipeCard from "@/components/RecipeCard";
-
+import { authClient } from "@/app/lib/auth-client";
 
 export default function BrowseRecipesPage() {
+  const { data: session, isPending: isAuthLoading } = authClient.useSession();
   const [allRecipes, setAllRecipes] = useState([]);
   const [filteredRecipes, setFilteredRecipes] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -65,6 +66,9 @@ export default function BrowseRecipesPage() {
     setFilteredRecipes(filtered);
   }, [searchQuery, selectedCategory, selectedDifficulty, allRecipes]);
 
+  // Combined evaluation for better UI transitions
+  const isDataLoading = isLoading || isAuthLoading;
+
   return (
     <div className="min-h-screen bg-slate-50/50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
@@ -119,10 +123,22 @@ export default function BrowseRecipesPage() {
         </div>
 
         {/* Dynamic Render Switch */}
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-32">
-            <Loader2 className="w-10 h-10 text-orange-500 animate-spin mb-3" />
-            <p className="text-sm text-slate-500 font-medium">Gathering our world recipes collection...</p>
+        {isDataLoading ? (
+          /* Clean Skeleton grid to match your exact card layout constraints */
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, index) => (
+              <div key={index} className="bg-white border border-slate-100 rounded-3xl p-4 space-y-4 animate-pulse shadow-xs">
+                <div className="bg-slate-200 h-48 w-full rounded-2xl" />
+                <div className="space-y-2">
+                  <div className="bg-slate-200 h-4 w-3/4 rounded-md" />
+                  <div className="bg-slate-200 h-3 w-1/2 rounded-md" />
+                </div>
+                <div className="flex justify-between items-center pt-2">
+                  <div className="bg-slate-200 h-5 w-16 rounded-full" />
+                  <div className="bg-slate-200 h-5 w-12 rounded-full" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : error ? (
           <div className="p-6 bg-red-50 text-red-700 border border-red-100 rounded-2xl text-center max-w-md mx-auto">
@@ -141,10 +157,9 @@ export default function BrowseRecipesPage() {
             </button>
           </div>
         ) : (
-          /* Render Loop passing properties clean down to our modular card */
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {filteredRecipes.map((recipe) => (
-              <RecipeCard key={recipe._id} recipe={recipe} />
+              <RecipeCard key={recipe._id} recipe={recipe} isLoggedIn={!!session?.user}/>
             ))}
           </div>
         )}

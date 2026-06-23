@@ -1,30 +1,47 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+// 🌟 FIX 1: Statically import both cookies and headers at the top of the file
+import { cookies, headers } from "next/headers";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/recipes";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/recipes";
 
 /**
- * Secure Helper: Extracts Better Auth session token from server cookies 
+ * Secure Helper: Extracts Better Auth session token from server cookies
  * and reconstructs standard Cookie headers for the Express server middleware.
  */
 async function getAuthHeaders() {
   const cookieStore = await cookies();
-  const token = cookieStore.get("better-auth.session_token")?.value;
+  const rawCookies = cookieStore.toString();
   
-  const headers = {
+  // 🌟 FIX 2: Safely read the host header via our static top-level import
+  const headerList = await headers();
+  const host = headerList.get("host") || "localhost:3000";
+  const frontendUrl = `http://${host}`;
+
+  const headersObj = {
     "Content-Type": "application/json",
+    // 🌟 FIX 3: Inject dynamic origin indicators so Better Auth accepts the cross-origin cookie payload
+    "Origin": frontendUrl,
+    "Referer": `${frontendUrl}/`,
   };
 
-  if (token) {
-    // 🌟 Crucial Alignment: Passes the token inside the Cookie string so 
-    // Express's auth.api.getSession can verify it natively without cross-origin issues.
-    headers["Cookie"] = `better-auth.session_token=${token}`;
-    headers["Authorization"] = `Bearer ${token}`;
+  // Pass the ENTIRE cookie jar string untouched
+  if (rawCookies) {
+    headersObj["Cookie"] = rawCookies;
   }
-  
-  return headers;
+
+  // Extract any session token present to populate the Authorization Bearer header safely
+  const token = 
+    cookieStore.get("better-auth.session_token")?.value || 
+    cookieStore.get("__Secure-better-auth.session_token")?.value;
+
+  if (token) {
+    headersObj["Authorization"] = `Bearer ${token}`;
+  }
+
+  return headersObj;
 }
 
 /**
@@ -36,7 +53,7 @@ export async function createRecipe(recipeData) {
     const response = await fetch(API_BASE_URL, {
       method: "POST",
       headers: headers,
-      body: JSON.stringify(recipeData), 
+      body: JSON.stringify(recipeData),
     });
 
     const result = await response.json();
@@ -46,6 +63,7 @@ export async function createRecipe(recipeData) {
     }
 
     revalidatePath("/dashboard/admin/manage-recipes");
+    revalidatePath("/dashboard/user/my-recipes");
     return { success: true, data: result.data };
   } catch (error) {
     console.error("Action Create Error:", error);
@@ -59,11 +77,11 @@ export async function createRecipe(recipeData) {
 export async function getAllRecipes(filters = {}) {
   try {
     const queryParams = new URLSearchParams();
-    
+
     const cleanFilters = {
       page: 1,
       limit: 5,
-      ...filters
+      ...filters,
     };
 
     Object.entries(cleanFilters).forEach(([key, value]) => {
@@ -80,19 +98,22 @@ export async function getAllRecipes(filters = {}) {
       throw new Error(result.error || "Failed to retrieve recipe pages.");
     }
 
-    return { 
-      success: true, 
-      data: result.data || [], 
-      pagination: result.pagination || { currentPage: 1, totalPages: 1, totalItems: 0 } 
+    return {
+      success: true,
+      data: result.data || [],
+      pagination: result.pagination || {
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: 0,
+      },
     };
-
   } catch (error) {
     console.error("Action Fetch All Error:", error);
-    return { 
-      success: false, 
-      error: error.message, 
-      data: [], 
-      pagination: { currentPage: 1, totalPages: 1, totalItems: 0 } 
+    return {
+      success: false,
+      error: error.message,
+      data: [],
+      pagination: { currentPage: 1, totalPages: 1, totalItems: 0 },
     };
   }
 }
@@ -102,9 +123,12 @@ export async function getAllRecipes(filters = {}) {
  */
 export async function getRecipeById(id) {
   try {
-    const response = await fetch(`${API_BASE_URL}/${id}`, { cache: "no-store" });
+    const response = await fetch(`${API_BASE_URL}/${id}`, {
+      cache: "no-store",
+    });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Recipe record not found.");
+    if (!response.ok)
+      throw new Error(result.error || "Recipe record not found.");
     return { success: true, data: result.data };
   } catch (error) {
     console.error("Action Fetch Single Error:", error);
@@ -121,13 +145,15 @@ export async function updateRecipe(id, updatedFields) {
     const response = await fetch(`${API_BASE_URL}/${id}`, {
       method: "PUT",
       headers: headers,
-      body: JSON.stringify(updatedFields), 
+      body: JSON.stringify(updatedFields),
     });
 
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Failed modifying recipe.");
+    if (!response.ok)
+      throw new Error(result.error || "Failed modifying recipe.");
 
     revalidatePath("/dashboard/admin/manage-recipes");
+    revalidatePath("/dashboard/user/my-recipes");
     revalidatePath(`/dashboard/admin/manage-recipes/edit/${id}`);
     return { success: true, data: result.data };
   } catch (error) {
@@ -141,9 +167,12 @@ export async function updateRecipe(id, updatedFields) {
  */
 export async function likeRecipe(id) {
   try {
-    const response = await fetch(`${API_BASE_URL}/${id}/like`, { method: "PATCH" });
+    const response = await fetch(`${API_BASE_URL}/${id}/like`, {
+      method: "PATCH",
+    });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Increment request failed.");
+    if (!response.ok)
+      throw new Error(result.error || "Increment request failed.");
     return { success: true, likesCount: result.likesCount };
   } catch (error) {
     console.error("Action Like Error:", error);
@@ -157,15 +186,17 @@ export async function likeRecipe(id) {
 export async function deleteRecipe(id) {
   try {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}/${id}`, { 
+    const response = await fetch(`${API_BASE_URL}/${id}`, {
       method: "DELETE",
-      headers: headers 
+      headers: headers,
     });
-    
+
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Failed removing document.");
+    if (!response.ok)
+      throw new Error(result.error || "Failed removing document.");
 
     revalidatePath("/dashboard/admin/manage-recipes");
+    revalidatePath("/dashboard/user/my-recipes");
     return { success: true, message: result.message };
   } catch (error) {
     console.error("Action Delete Error:", error);
@@ -183,9 +214,12 @@ export const getRecipeByUserId = async (userId) => {
       return { success: false, data: [] };
     }
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:5000"}/api/recipes/user/${userId}`, {
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:5000"}/api/recipes/user/${userId}`,
+      {
+        cache: "no-store",
+      },
+    );
 
     if (!res.ok) {
       throw new Error(`Server returned a ${res.status} error code.`);
@@ -196,15 +230,17 @@ export const getRecipeByUserId = async (userId) => {
     if (result && Array.isArray(result)) {
       return { success: true, data: result };
     }
-    
+
     if (result && result.success && Array.isArray(result.data)) {
       return result;
     }
 
     return { success: true, data: result.recipes || [] };
-    
   } catch (error) {
-    console.error(`Action [getRecipeByUserId] Error for ID ${userId}:`, error.message);
+    console.error(
+      `Action [getRecipeByUserId] Error for ID ${userId}:`,
+      error.message,
+    );
     return { success: false, data: [], error: error.message };
   }
 };
