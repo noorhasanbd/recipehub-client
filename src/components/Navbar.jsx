@@ -52,8 +52,8 @@ export default function Navbar() {
       : "/dashboard/user/overview";
   const profileHref =
     userRole === "admin"
-      ? "/dashboard/admin/profile"
-      : "/dashboard/user/profile";
+      ? "/dashboard/my-profile"
+      : "/dashboard/my-profile";
 
   return (
     <nav className="sticky top-0 z-50 bg-white w-full border-b border-gray-100 py-3">
