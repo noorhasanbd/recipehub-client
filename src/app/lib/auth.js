@@ -43,6 +43,10 @@ export const auth = betterAuth({
         defaultValue: false,
         input: false,
       },
+      stripeSubscriptionId: {
+        type: "string",
+        required: false,
+      },
     },
   },
 });

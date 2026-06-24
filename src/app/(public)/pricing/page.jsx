@@ -1,37 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { authClient } from "@/app/lib/auth-client";
-import { toast } from "react-toastify";
-import { Check, Loader2, Sparkles, Utensils } from "lucide-react";
+import { Loader2, Sparkles, Utensils, Check } from "lucide-react";
 
 export default function PricingPage() {
   const { data: session, isPending: isSessionPending } = authClient.useSession();
-  const [isRedirecting, setIsRedirecting] = useState(false);
-
   const isPremiumUser = session?.user?.isPremium === true;
-
-  const handleUpgrade = async () => {
-    if (!session?.user) {
-      toast.error("Please log in to purchase a premium subscription.");
-      return;
-    }
-    
-    setIsRedirecting(true);
-    try {
-      const res = await fetch("/api/stripe/checkout", { method: "POST" });
-      const data = await res.json();
-      
-      if (data.url) {
-        window.location.href = data.url; // Redirect to Stripe checkout node
-      } else {
-        throw new Error(data.error || "Failed to generate transaction instance.");
-      }
-    } catch (err) {
-      toast.error(err.message || "Something went wrong.");
-      setIsRedirecting(false);
-    }
-  };
 
   if (isSessionPending) {
     return (
@@ -133,19 +108,31 @@ export default function PricingPage() {
             </li>
           </ul>
 
+          {/* NATIVE FORM TRIGGER INTEGRATION */}
           {isPremiumUser ? (
             <div className="w-full py-2.5 bg-emerald-50 text-emerald-700 font-bold text-sm rounded-xl text-center border border-emerald-200">
               ✓ Premium Membership Active
             </div>
           ) : (
-            <button
-              onClick={handleUpgrade}
-              disabled={isRedirecting}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-950 hover:bg-slate-800 text-white font-bold text-sm rounded-xl transition-all disabled:bg-slate-700 shadow-sm shadow-slate-900/10"
-            >
-              {isRedirecting && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isRedirecting ? "Connecting to Stripe..." : "Upgrade Now"}
-            </button>
+            <form action="/api/checkout_sessions" method="POST" className="w-full">
+              
+              {/* Hidden configuration attribute tracking parameters passed to Stripe node */}
+              {session?.user?.email && (
+                <input 
+                  type="hidden" 
+                  name="customer_email" 
+                  value={session.user.email} 
+                />
+              )}
+
+              <button
+                type="submit"
+                role="link"
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-950 hover:bg-slate-800 text-white font-bold text-sm rounded-xl transition-all shadow-sm shadow-slate-900/10"
+              >
+                Upgrade Now
+              </button>
+            </form>
           )}
         </div>
 
