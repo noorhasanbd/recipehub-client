@@ -4,13 +4,13 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Card, Spinner } from "@heroui/react";
 import { Clock, BarChart3, Heart, Bookmark, MoreVertical, ShieldAlert, Ban, AlertTriangle, Coins, ShoppingBag } from "lucide-react";
-import { authClient } from "@/app/lib/auth-client"; // 🌟 Importing your auth framework
+import { authClient } from "@/app/lib/auth-client"; 
 import { createRecipeReport } from "@/app/lib/actions/recipeActions/UserRecipeReport";
 import { toggleFavoriteRecipe, getUserFavorites } from "@/app/lib/actions/recipeActions/favoriteActions";
-import { getUserPurchases } from "@/app/lib/actions/recipeActions/purchaseActions";
+import { getPurchasedRecipes } from "@/app/lib/actions/recipeActions/purchaseActions";
 
 export default function RecipeCard({ recipe, isLoggedIn = false }) {
-  // 🌟 Fetch session context directly inside the card to auto-grab id and email
+  // Fetch session context dynamically
   const { data: session } = authClient.useSession();
   const activeUserId = session?.user?.id;
   const activeUserEmail = session?.user?.email;
@@ -19,31 +19,35 @@ export default function RecipeCard({ recipe, isLoggedIn = false }) {
   const [likesCount, setLikesCount] = useState(recipe.likesCount || 0);
   const [isFavorited, setIsFavorited] = useState(false);
   const [isFavoriting, setIsFavoriting] = useState(false);
-  
-  // Track purchase/ownership validation status
   const [isPurchased, setIsPurchased] = useState(false);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDonating, setIsDonating] = useState(false);
   const menuRef = useRef(null);
 
-  // Fetch initial interaction data arrays on component mount
+  // Synchronize state markers on mount or session resolution
   useEffect(() => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || !activeUserId) return;
 
     async function checkCardValidationData() {
       try {
-        // 1. Evaluate Favorites Status
-        const favRes = await getUserFavorites();
+        // 1. Evaluate Favorites Status safely handling type casting
+        const favRes = await getUserFavorites(activeUserId); 
         if (favRes.success && Array.isArray(favRes.data)) {
-          const matchFound = favRes.data.some((fav) => fav._id === recipe._id);
+          const matchFound = favRes.data.some((fav) => {
+            const favTargetId = fav._id;
+            return favTargetId?.toString() === recipe._id?.toString();
+          });
           setIsFavorited(matchFound);
         }
 
         // 2. Evaluate Purchased Collection Status
-        const purchaseRes = await getUserPurchases();
+        const purchaseRes = await getPurchasedRecipes(activeUserId);
         if (purchaseRes.success && Array.isArray(purchaseRes.data)) {
-          const ownershipFound = purchaseRes.data.some((p) => p.recipeId === recipe._id || p._id === recipe._id);
+          const ownershipFound = purchaseRes.data.some((p) => {
+            const purchaseTargetId = p.recipeId || p._id;
+            return purchaseTargetId?.toString() === recipe._id?.toString();
+          });
           setIsPurchased(ownershipFound);
         }
       } catch (err) {
@@ -52,7 +56,7 @@ export default function RecipeCard({ recipe, isLoggedIn = false }) {
     }
 
     checkCardValidationData();
-  }, [recipe._id, isLoggedIn]);
+  }, [recipe._id, isLoggedIn, activeUserId]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -82,35 +86,32 @@ export default function RecipeCard({ recipe, isLoggedIn = false }) {
     e.preventDefault();
     e.stopPropagation();
 
-    if (!isLoggedIn) {
+    if (!isLoggedIn || !activeUserId) {
       alert("Please log in to save recipes to your favorites catalog!");
       return;
     }
 
     if (isFavoriting) return;
-
-    setIsFavorited((prev) => !prev);
     setIsFavoriting(true);
 
     try {
       const result = await toggleFavoriteRecipe(recipe._id);
-      if (!result.success) {
-        setIsFavorited((prev) => !prev);
+      if (result.success) {
+        // Explicitly set state based on the server response toggle state
+        setIsFavorited(result.isFavorited);
+      } else {
         alert(`Failed to save favorite: ${result.error}`);
       }
     } catch (err) {
-      setIsFavorited((prev) => !prev);
       alert("Network exception updating bookmark metrics.");
     } finally {
       setIsFavoriting(false);
     }
   };
 
-  // Launches Stripe Checkout for flat rate tipping via client endpoint
   const handleDonationClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-
     setIsDonating(true);
 
     try {
@@ -128,7 +129,6 @@ export default function RecipeCard({ recipe, isLoggedIn = false }) {
       });
 
       const data = await response.json();
-
       if (data.url) {
         window.location.href = data.url;
       } else {
@@ -297,7 +297,6 @@ export default function RecipeCard({ recipe, isLoggedIn = false }) {
               onClick={(e) => e.stopPropagation()} 
               className="flex-1"
             >
-              {/* 🌟 Automatically passing active session variables to form fields */}
               {activeUserId && <input type="hidden" name="user_id" value={activeUserId} />}
               {activeUserEmail && <input type="hidden" name="customer_email" value={activeUserEmail} />}
               
@@ -339,9 +338,7 @@ export default function RecipeCard({ recipe, isLoggedIn = false }) {
             </button>
 
           </div>
-
         </div>
-
       </Card>
     </Link>
   );

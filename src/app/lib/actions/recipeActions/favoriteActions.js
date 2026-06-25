@@ -24,18 +24,20 @@ async function getAuthHeaders() {
  * 1. TOGGLE FAVORITE 
  * Targets: POST /api/recipes/:id/favorite
  */
-export async function toggleFavoriteRecipe(recipeId) {
+export async function toggleFavoriteRecipe(recipeId, userId) {
   try {
     const headers = await getAuthHeaders();
     const response = await fetch(`${SERVER_BASE}/api/recipes/${recipeId}/favorite`, {
       method: "POST",
-      headers
+      headers,
+      // 🌟 Explicitly forward userId to fallback if session headers drop out
+      body: JSON.stringify({ userId }) 
     });
 
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Failed handling favorite toggle execution.");
 
-    // Purge cached tracks to force immediate visual component updates
+    // Purge cached paths to force immediate visual component updates
     revalidatePath("/recipes");
     revalidatePath(`/recipes/${recipeId}`);
     revalidatePath("/dashboard/user/favorites");
@@ -49,7 +51,6 @@ export async function toggleFavoriteRecipe(recipeId) {
 
 /**
  * 2. EXPLICIT REMOVE FROM FAVORITES
- * Targets: DELETE /api/recipes/:id/favorite
  */
 export async function removeFavoriteRecipe(recipeId) {
   try {
@@ -77,19 +78,27 @@ export async function removeFavoriteRecipe(recipeId) {
  * 3. GET CURRENT USER'S FAVORITES
  * Targets: GET /api/recipes/favorites/my-list
  */
-export async function getUserFavorites() {
+export async function getUserFavorites(userId) {
   try {
     const headers = await getAuthHeaders();
-    const response = await fetch(`${SERVER_BASE}/api/recipes/favorites/my-list`, {
+    
+    // 🌟 FIX: Append the userId as a query parameter or header to ensure Express identifies the requester
+    const targetUrl = userId 
+      ? `${SERVER_BASE}/api/recipes/favorites/my-list?userId=${userId}`
+      : `${SERVER_BASE}/api/recipes/favorites/my-list`;
+
+    const response = await fetch(targetUrl, {
       method: "GET",
       headers,
-      cache: "no-store" // Bypasses Next.js caching layers to load fresh database lookups
+      cache: "no-store", // Bypasses Next.js caching layers
+      next: { revalidate: 0 } // Prevents route layout snapshot caching
     });
 
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Failed to retrieve personal collections.");
 
-    return { success: true, data: result.favorites || [] };
+    console.log(result, "From favorite action")
+    return { success: true, data: result.data || [] };
   } catch (error) {
     console.error("Action Get Favorites Error:", error.message);
     return { success: false, error: error.message, data: [] };
