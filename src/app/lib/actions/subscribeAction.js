@@ -16,6 +16,7 @@ export async function verifyPaymentSession(sessionId) {
     });
 
     const data = await response.json();
+    console.log(data, "Entered into the veryfypayment session");
 
     if (!response.ok || !data.success) {
       return { success: false, error: data.error || "Express server validation failed" };

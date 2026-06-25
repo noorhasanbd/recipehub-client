@@ -2,38 +2,56 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Card } from "@heroui/react";
-import { Clock, BarChart3, Heart, Bookmark, MoreVertical, ShieldAlert, Ban, AlertTriangle } from "lucide-react";
+import { Card, Spinner } from "@heroui/react";
+import { Clock, BarChart3, Heart, Bookmark, MoreVertical, ShieldAlert, Ban, AlertTriangle, Coins, ShoppingBag } from "lucide-react";
+import { authClient } from "@/app/lib/auth-client"; // 🌟 Importing your auth framework
 import { createRecipeReport } from "@/app/lib/actions/recipeActions/UserRecipeReport";
-// 🌟 UPDATED: Imports your server actions to fetch lists and toggle entries
 import { toggleFavoriteRecipe, getUserFavorites } from "@/app/lib/actions/recipeActions/favoriteActions";
+import { getUserPurchases } from "@/app/lib/actions/recipeActions/purchaseActions";
 
 export default function RecipeCard({ recipe, isLoggedIn = false }) {
+  // 🌟 Fetch session context directly inside the card to auto-grab id and email
+  const { data: session } = authClient.useSession();
+  const activeUserId = session?.user?.id;
+  const activeUserEmail = session?.user?.email;
+
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(recipe.likesCount || 0);
   const [isFavorited, setIsFavorited] = useState(false);
   const [isFavoriting, setIsFavoriting] = useState(false);
+  
+  // Track purchase/ownership validation status
+  const [isPurchased, setIsPurchased] = useState(false);
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDonating, setIsDonating] = useState(false);
   const menuRef = useRef(null);
 
-  // 🌟 NEW: Fetch the user's favorites catalog on mount to determine the active state
+  // Fetch initial interaction data arrays on component mount
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    async function checkFavoriteStatus() {
+    async function checkCardValidationData() {
       try {
-        const res = await getUserFavorites();
-        if (res.success && Array.isArray(res.data)) {
-          // Check if this recipe's ID exists inside the returned favorites collection list
-          const matchFound = res.data.some((fav) => fav._id === recipe._id);
+        // 1. Evaluate Favorites Status
+        const favRes = await getUserFavorites();
+        if (favRes.success && Array.isArray(favRes.data)) {
+          const matchFound = favRes.data.some((fav) => fav._id === recipe._id);
           setIsFavorited(matchFound);
         }
+
+        // 2. Evaluate Purchased Collection Status
+        const purchaseRes = await getUserPurchases();
+        if (purchaseRes.success && Array.isArray(purchaseRes.data)) {
+          const ownershipFound = purchaseRes.data.some((p) => p.recipeId === recipe._id || p._id === recipe._id);
+          setIsPurchased(ownershipFound);
+        }
       } catch (err) {
-        console.error("Failed fetching initial card favorite validation data:", err);
+        console.error("Failed fetching initial card validation database matrices:", err);
       }
     }
 
-    checkFavoriteStatus();
+    checkCardValidationData();
   }, [recipe._id, isLoggedIn]);
 
   useEffect(() => {
@@ -71,22 +89,56 @@ export default function RecipeCard({ recipe, isLoggedIn = false }) {
 
     if (isFavoriting) return;
 
-    // Optimistic UI update
     setIsFavorited((prev) => !prev);
     setIsFavoriting(true);
 
     try {
-      // Targets the new dedicated collection route on your Express server
       const result = await toggleFavoriteRecipe(recipe._id);
       if (!result.success) {
-        setIsFavorited((prev) => !prev); // Revert status if server mutation fails
+        setIsFavorited((prev) => !prev);
         alert(`Failed to save favorite: ${result.error}`);
       }
     } catch (err) {
-      setIsFavorited((prev) => !prev); // Revert status on crash
+      setIsFavorited((prev) => !prev);
       alert("Network exception updating bookmark metrics.");
     } finally {
       setIsFavoriting(false);
+    }
+  };
+
+  // Launches Stripe Checkout for flat rate tipping via client endpoint
+  const handleDonationClick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setIsDonating(true);
+
+    try {
+      const response = await fetch("/api/checkout/recipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipeId: recipe._id,
+          recipeName: recipe.recipeName,
+          recipeImage: recipe.recipeImage,
+          price: 2.00,
+          userId: activeUserId || "anonymous",
+          type: "recipe_donation"
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || "Could not generate transaction window.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Unable to reach Stripe checkout right now.");
+    } finally {
+      setIsDonating(false);
     }
   };
 
@@ -128,7 +180,7 @@ export default function RecipeCard({ recipe, isLoggedIn = false }) {
             {recipe.category || "Recipe"}
           </span>
 
-          {/* Display three-dot menu option if user is logged in */}
+          {/* Three-dot menu option */}
           {isLoggedIn && (
             <div className="absolute top-3 right-3 z-20" ref={menuRef}>
               <button
@@ -221,20 +273,71 @@ export default function RecipeCard({ recipe, isLoggedIn = false }) {
             </button>
           </Card.Footer>
 
-          {/* ACTION BUTTON PANEL */}
-          <div className="px-5 pb-4 pt-1">
+          {/* THREE-COLUMN ACTIONS GRID */}
+          <div className="px-5 pb-4 pt-1 flex gap-1.5">
+            
+            {/* Button 1: Save / Favorite Item */}
             <button
               onClick={handleFavoriteClick}
               disabled={isFavoriting}
-              className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all duration-200 outline-hidden tracking-wide disabled:opacity-70 border ${
+              className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-bold transition-all duration-200 outline-hidden tracking-wide disabled:opacity-70 border ${
                 isFavorited 
                   ? "bg-amber-500 border-amber-500 text-white hover:bg-amber-600 hover:border-amber-600 shadow-xs" 
                   : "bg-white border-slate-200 text-slate-700 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-600"
               }`}
             >
-              <Bookmark className={`w-3.5 h-3.5 ${isFavorited ? "fill-white" : ""}`} />
-              <span>{isFavorited ? "Saved to Favorites" : "Add to Favorites"}</span>
+              <Bookmark className={`w-3 h-3 ${isFavorited ? "fill-white" : ""}`} />
+              <span>{isFavorited ? "Saved" : "Save"}</span>
             </button>
+
+            {/* Button 2: Recipe Checkout Form Container */}
+            <form 
+              action="/api/purchase-recipe/checkout_sessions" 
+              method="POST"
+              onClick={(e) => e.stopPropagation()} 
+              className="flex-1"
+            >
+              {/* 🌟 Automatically passing active session variables to form fields */}
+              {activeUserId && <input type="hidden" name="user_id" value={activeUserId} />}
+              {activeUserEmail && <input type="hidden" name="customer_email" value={activeUserEmail} />}
+              
+              <input type="hidden" name="recipe_id" value={recipe._id} />
+              <input type="hidden" name="recipe_name" value={recipe.recipeName || "Premium Recipe Access"} />
+              <input type="hidden" name="recipe_price" value={recipe.price || "4.99"} />
+              {recipe.recipeImage && <input type="hidden" name="recipe_image" value={recipe.recipeImage} />}
+
+              <button
+                type="submit"
+                disabled={isPurchased || !isLoggedIn}
+                className={`w-full h-full flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-bold transition-all duration-200 outline-hidden tracking-wide border ${
+                  isPurchased 
+                    ? "bg-orange-500 border-orange-500 text-white cursor-default" 
+                    : !isLoggedIn
+                    ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
+                    : "bg-white border-slate-200 text-slate-700 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-500"
+                }`}
+              >
+                <ShoppingBag className={`w-3 h-3 ${isPurchased ? "fill-white" : ""}`} />
+                <span>{isPurchased ? "Owned" : `Buy`}</span>
+              </button>
+            </form>
+
+            {/* Button 3: Tip / Support */}
+            <button
+              onClick={handleDonationClick}
+              disabled={isDonating}
+              className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[11px] font-bold transition-all duration-200 outline-hidden tracking-wide bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700 shadow-xs disabled:opacity-75"
+            >
+              {isDonating ? (
+                <Spinner size="sm" color="white" />
+              ) : (
+                <>
+                  <Coins className="w-3 h-3" />
+                  <span>Tip $2</span>
+                </>
+              )}
+            </button>
+
           </div>
 
         </div>
