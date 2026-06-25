@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 
 // 🌟 STANDARDIZED BASE URL: Set to clean base domain and construct paths safely
-const SERVER_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const SERVER_BASE = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:5000";
 const API_BASE_URL = `${SERVER_BASE}/api/recipes`;
 
 /**
