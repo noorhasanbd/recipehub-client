@@ -3,14 +3,16 @@
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Card } from "@heroui/react";
-import { Clock, BarChart3, Heart, MoreVertical, ShieldAlert, Ban, AlertTriangle } from "lucide-react";
+import { Clock, BarChart3, Heart, Bookmark, MoreVertical, ShieldAlert, Ban, AlertTriangle } from "lucide-react";
 import { createRecipeReport } from "@/app/lib/actions/recipeActions/UserRecipeReport";
-// 🌟 IMPORTED: Real server action file to handle the secure backend handshake
+// 🌟 IMPORTED: Real server action file to handle the favorite backend sync
+import { toggleFavoriteRecipe } from "@/app/lib/actions/recipeActions/favoriteActions";
 
-
-export default function RecipeCard({ recipe, isLoggedIn = false }) {
+export default function RecipeCard({ recipe, isLoggedIn = false, initialIsFavorited = false }) {
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(recipe.likesCount || 0);
+  const [isFavorited, setIsFavorited] = useState(initialIsFavorited);
+  const [isFavoriting, setIsFavoriting] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -38,13 +40,43 @@ export default function RecipeCard({ recipe, isLoggedIn = false }) {
     setIsLiked(!isLiked);
   };
 
+  // 🌟 NEW: Asynchronous favorite handler interaction pipeline
+  const handleFavoriteClick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isLoggedIn) {
+      alert("Please log in to save recipes to your favorites catalog!");
+      return;
+    }
+
+    if (isFavoriting) return;
+
+    // Optimistic UI state flip
+    setIsFavorited((prev) => !prev);
+    setIsFavoriting(true);
+
+    try {
+      const result = await toggleFavoriteRecipe(recipe._id);
+      if (!result.success) {
+        // Revert UI state if backend verification breaks down
+        setIsFavorited((prev) => !prev);
+        alert(`Failed to save favorite: ${result.error}`);
+      }
+    } catch (err) {
+      setIsFavorited((prev) => !prev);
+      alert("Network exception updating bookmark metrics.");
+    } finally {
+      setIsFavoriting(false);
+    }
+  };
+
   const toggleMenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setIsMenuOpen(!isMenuOpen);
   };
 
-  // 🌟 UPDATED: Asynchronous handler fires data payload off to Server Action layer cleanly
   const handleReportRecipe = async (e, reportReason) => {
     e.preventDefault();
     e.stopPropagation();
@@ -52,7 +84,6 @@ export default function RecipeCard({ recipe, isLoggedIn = false }) {
     
     try {
       const result = await createRecipeReport(recipe._id, recipe.recipeName, reportReason);
-      
       if (result.success) {
         alert("Thank you for keeping our platform safe. This recipe has been flagged for review.");
       } else {
@@ -72,11 +103,27 @@ export default function RecipeCard({ recipe, isLoggedIn = false }) {
         
         {/* Recipe Image Wrapper */}
         <Card.Content className="p-0 relative h-48 w-full overflow-hidden bg-slate-100">
+          
+          {/* Category Tag */}
           <span className="absolute top-3 left-3 z-10 rounded-lg bg-white/90 backdrop-blur-xs px-2.5 py-1 text-xs font-bold text-slate-800 shadow-xs">
             {recipe.category || "Recipe"}
           </span>
 
-          {/* Only display three-dot menu option if user is logged in */}
+          {/* 🌟 NEW FEATURE: Interactive Floating Favorite Action Button overlay */}
+          <button
+            onClick={handleFavoriteClick}
+            disabled={isFavoriting}
+            className={`absolute top-3 left-24 z-20 p-1.5 rounded-xl backdrop-blur-xs shadow-xs transition-all duration-200 outline-hidden focus:ring-2 focus:ring-orange-500/20 disabled:opacity-70 ${
+              isFavorited 
+                ? "bg-amber-500 text-white hover:bg-amber-600" 
+                : "bg-white/90 text-slate-500 hover:text-amber-500 hover:scale-105"
+            }`}
+            aria-label={isFavorited ? "Remove from favorites" : "Add to favorites"}
+          >
+            <Bookmark className={`w-4 h-4 ${isFavorited ? "fill-white" : ""}`} />
+          </button>
+
+          {/* Display three-dot menu option if user is logged in */}
           {isLoggedIn && (
             <div className="absolute top-3 right-3 z-20" ref={menuRef}>
               <button

@@ -14,18 +14,24 @@ export default function AddRecipePage() {
   // Read live client session details from Better Auth
   const { data: session, isPending } = authClient.useSession();
 
-  // 🌟 NEW: Track state for user's existing recipe counts
+  // Track state for user's existing recipe counts
   const [existingCount, setExistingCount] = useState(0);
   const [isLoadingCount, setIsLoadingCount] = useState(true);
 
-  // 🌟 NEW: Fetch current count if user is authenticated
+  // Fetch current count if user is authenticated
   useEffect(() => {
     if (session?.user?.id) {
-      fetch(`http://localhost:5000/api/recipes/user/${session.user.id}`)
+      // 🌟 FIX 1: Use your production environment variable instead of hardcoded localhost
+      const serverBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      
+      fetch(`${serverBase}/api/recipes/user/${session.user.id}`)
         .then((res) => res.json())
         .then((resData) => {
+          // Robust parsing to capture count regardless of object wrappers
           if (resData.success) {
-            setExistingCount(resData.count || 0);
+            setExistingCount(resData.count ?? (Array.isArray(resData.data) ? resData.data.length : 0));
+          } else if (Array.isArray(resData)) {
+            setExistingCount(resData.length);
           }
         })
         .catch((err) => console.error("Error evaluating subscription thresholds:", err))
@@ -52,7 +58,7 @@ export default function AddRecipePage() {
       const result = await createRecipe(explicitPayload);
 
       if (result.success) {
-        alert("🎉 Recipe successfully published to MongoDB!");
+        alert("🎉 Recipe successfully published!");
         router.push("/dashboard/user/my-recipes"); 
       } else {
         alert(`❌ Database submission error: ${result.error}`);
@@ -99,7 +105,7 @@ export default function AddRecipePage() {
     );
   }
 
-  // 🌟 3. NEW FEATURE GUARD: Block render block if limit exceeded
+  // 🌟 FIX 2: Solidify verification evaluation checks
   const isPremium = session.user.isPremium === true;
   const hasReachedLimit = !isPremium && existingCount >= 3;
 
@@ -134,7 +140,6 @@ export default function AddRecipePage() {
     );
   }
 
-  // 4. Render the workspace if verification clears and limits are safe
   return (
     <div className="space-y-8 p-6 max-w-4xl mx-auto">
       
