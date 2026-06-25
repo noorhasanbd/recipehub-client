@@ -2,7 +2,7 @@
 
 export async function getAllTransactions() {
   try {
-    const expressUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const expressUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:5000';
     
     // Create an endpoint in express or fetch directly from an admin data sync endpoint
     const response = await fetch(`${expressUrl}/api/all-transactions`, {

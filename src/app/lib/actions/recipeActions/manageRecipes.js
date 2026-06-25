@@ -1,11 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-// 🌟 FIX 1: Statically import both cookies and headers at the top of the file
 import { cookies, headers } from "next/headers";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/recipes";
+// 🌟 STANDARDIZED BASE URL: Set to clean base domain and construct paths safely
+const SERVER_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_BASE_URL = `${SERVER_BASE}/api/recipes`;
 
 /**
  * Secure Helper: Extracts Better Auth session token from server cookies
@@ -15,24 +15,23 @@ async function getAuthHeaders() {
   const cookieStore = await cookies();
   const rawCookies = cookieStore.toString();
   
-  // 🌟 FIX 2: Safely read the host header via our static top-level import
   const headerList = await headers();
   const host = headerList.get("host") || "localhost:3000";
-  const frontendUrl = `http://${host}`;
+  
+  // Dynamically detect if on Vercel production (https) or local testing (http)
+  const protocol = host.includes("localhost") ? "http" : "https";
+  const frontendUrl = `${protocol}://${host}`;
 
   const headersObj = {
     "Content-Type": "application/json",
-    // 🌟 FIX 3: Inject dynamic origin indicators so Better Auth accepts the cross-origin cookie payload
     "Origin": frontendUrl,
     "Referer": `${frontendUrl}/`,
   };
 
-  // Pass the ENTIRE cookie jar string untouched
   if (rawCookies) {
     headersObj["Cookie"] = rawCookies;
   }
 
-  // Extract any session token present to populate the Authorization Bearer header safely
   const token = 
     cookieStore.get("better-auth.session_token")?.value || 
     cookieStore.get("__Secure-better-auth.session_token")?.value;
@@ -45,14 +44,14 @@ async function getAuthHeaders() {
 }
 
 /**
- * 1. CREATE: Add a new recipe using explicit client session mapping
+ * 1. CREATE: Add a new recipe
  */
 export async function createRecipe(recipeData) {
   try {
-    const headers = await getAuthHeaders();
+    const authHeaders = await getAuthHeaders();
     const response = await fetch(API_BASE_URL, {
       method: "POST",
-      headers: headers,
+      headers: authHeaders,
       body: JSON.stringify(recipeData),
     });
 
@@ -105,6 +104,7 @@ export async function getAllRecipes(filters = {}) {
         currentPage: 1,
         totalPages: 1,
         totalItems: 0,
+        limit: 5
       },
     };
   } catch (error) {
@@ -113,7 +113,7 @@ export async function getAllRecipes(filters = {}) {
       success: false,
       error: error.message,
       data: [],
-      pagination: { currentPage: 1, totalPages: 1, totalItems: 0 },
+      pagination: { currentPage: 1, totalPages: 1, totalItems: 0, limit: 5 },
     };
   }
 }
@@ -141,10 +141,10 @@ export async function getRecipeById(id) {
  */
 export async function updateRecipe(id, updatedFields) {
   try {
-    const headers = await getAuthHeaders();
+    const authHeaders = await getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/${id}`, {
       method: "PUT",
-      headers: headers,
+      headers: authHeaders,
       body: JSON.stringify(updatedFields),
     });
 
@@ -185,10 +185,10 @@ export async function likeRecipe(id) {
  */
 export async function deleteRecipe(id) {
   try {
-    const headers = await getAuthHeaders();
+    const authHeaders = await getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/${id}`, {
       method: "DELETE",
-      headers: headers,
+      headers: authHeaders,
     });
 
     const result = await response.json();
@@ -214,12 +214,10 @@ export const getRecipeByUserId = async (userId) => {
       return { success: false, data: [] };
     }
 
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:5000"}/api/recipes/user/${userId}`,
-      {
-        cache: "no-store",
-      },
-    );
+    // 🌟 FIXED PATH MAPPING: Targets clean URL segment structure smoothly
+    const res = await fetch(`${API_BASE_URL}/user/${userId}`, {
+      cache: "no-store",
+    });
 
     if (!res.ok) {
       throw new Error(`Server returned a ${res.status} error code.`);
@@ -227,12 +225,12 @@ export const getRecipeByUserId = async (userId) => {
 
     const result = await res.json();
 
-    if (result && Array.isArray(result)) {
-      return { success: true, data: result };
-    }
-
     if (result && result.success && Array.isArray(result.data)) {
       return result;
+    }
+
+    if (result && Array.isArray(result)) {
+      return { success: true, data: result };
     }
 
     return { success: true, data: result.recipes || [] };
