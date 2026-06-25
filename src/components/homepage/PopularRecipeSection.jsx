@@ -3,9 +3,10 @@
 
 import React, { useEffect, useState } from "react";
 import { Loader2, Flame, Award } from "lucide-react";
-import RecipeCard from "@/components/recipes/RecipeCard"; // Adjust this import path to match your layout
+ // Adjust this import path to match your layout
 import { getAllRecipes } from "@/app/lib/actions/recipeActions/manageRecipes"; 
 import { authClient } from "@/app/lib/auth-client";
+import RecipeCard from "../RecipeCard";
 
 export default function PopularRecipes() {
   const { data: session } = authClient.useSession();
@@ -97,7 +98,7 @@ export default function PopularRecipes() {
         {/* Dynamic Responsive Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {recipes.map((recipe) => (
-            <RecipeCard 
+            <RecipeCard
               key={recipe._id} 
               recipe={recipe} 
               isLoggedIn={isLoggedIn}

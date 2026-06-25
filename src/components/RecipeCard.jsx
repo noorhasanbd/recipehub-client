@@ -5,16 +5,36 @@ import Link from "next/link";
 import { Card } from "@heroui/react";
 import { Clock, BarChart3, Heart, Bookmark, MoreVertical, ShieldAlert, Ban, AlertTriangle } from "lucide-react";
 import { createRecipeReport } from "@/app/lib/actions/recipeActions/UserRecipeReport";
-// 🌟 IMPORTED: Real server action file to handle the favorite backend sync
-import { toggleFavoriteRecipe } from "@/app/lib/actions/recipeActions/favoriteActions";
+// 🌟 UPDATED: Imports your server actions to fetch lists and toggle entries
+import { toggleFavoriteRecipe, getUserFavorites } from "@/app/lib/actions/recipeActions/favoriteActions";
 
-export default function RecipeCard({ recipe, isLoggedIn = false, initialIsFavorited = false }) {
+export default function RecipeCard({ recipe, isLoggedIn = false }) {
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(recipe.likesCount || 0);
-  const [isFavorited, setIsFavorited] = useState(initialIsFavorited);
+  const [isFavorited, setIsFavorited] = useState(false);
   const [isFavoriting, setIsFavoriting] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
+
+  // 🌟 NEW: Fetch the user's favorites catalog on mount to determine the active state
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    async function checkFavoriteStatus() {
+      try {
+        const res = await getUserFavorites();
+        if (res.success && Array.isArray(res.data)) {
+          // Check if this recipe's ID exists inside the returned favorites collection list
+          const matchFound = res.data.some((fav) => fav._id === recipe._id);
+          setIsFavorited(matchFound);
+        }
+      } catch (err) {
+        console.error("Failed fetching initial card favorite validation data:", err);
+      }
+    }
+
+    checkFavoriteStatus();
+  }, [recipe._id, isLoggedIn]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -40,7 +60,6 @@ export default function RecipeCard({ recipe, isLoggedIn = false, initialIsFavori
     setIsLiked(!isLiked);
   };
 
-  // 🌟 NEW: Asynchronous favorite handler interaction pipeline
   const handleFavoriteClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -52,19 +71,19 @@ export default function RecipeCard({ recipe, isLoggedIn = false, initialIsFavori
 
     if (isFavoriting) return;
 
-    // Optimistic UI state flip
+    // Optimistic UI update
     setIsFavorited((prev) => !prev);
     setIsFavoriting(true);
 
     try {
+      // Targets the new dedicated collection route on your Express server
       const result = await toggleFavoriteRecipe(recipe._id);
       if (!result.success) {
-        // Revert UI state if backend verification breaks down
-        setIsFavorited((prev) => !prev);
+        setIsFavorited((prev) => !prev); // Revert status if server mutation fails
         alert(`Failed to save favorite: ${result.error}`);
       }
     } catch (err) {
-      setIsFavorited((prev) => !prev);
+      setIsFavorited((prev) => !prev); // Revert status on crash
       alert("Network exception updating bookmark metrics.");
     } finally {
       setIsFavoriting(false);
@@ -108,20 +127,6 @@ export default function RecipeCard({ recipe, isLoggedIn = false, initialIsFavori
           <span className="absolute top-3 left-3 z-10 rounded-lg bg-white/90 backdrop-blur-xs px-2.5 py-1 text-xs font-bold text-slate-800 shadow-xs">
             {recipe.category || "Recipe"}
           </span>
-
-          {/* 🌟 NEW FEATURE: Interactive Floating Favorite Action Button overlay */}
-          <button
-            onClick={handleFavoriteClick}
-            disabled={isFavoriting}
-            className={`absolute top-3 left-24 z-20 p-1.5 rounded-xl backdrop-blur-xs shadow-xs transition-all duration-200 outline-hidden focus:ring-2 focus:ring-orange-500/20 disabled:opacity-70 ${
-              isFavorited 
-                ? "bg-amber-500 text-white hover:bg-amber-600" 
-                : "bg-white/90 text-slate-500 hover:text-amber-500 hover:scale-105"
-            }`}
-            aria-label={isFavorited ? "Remove from favorites" : "Add to favorites"}
-          >
-            <Bookmark className={`w-4 h-4 ${isFavorited ? "fill-white" : ""}`} />
-          </button>
 
           {/* Display three-dot menu option if user is logged in */}
           {isLoggedIn && (
@@ -187,31 +192,52 @@ export default function RecipeCard({ recipe, isLoggedIn = false, initialIsFavori
           </Card.Description>
         </Card.Header>
 
-        {/* Card bottom footer specs row */}
-        <Card.Footer className="px-5 pb-5 mt-auto pt-3 border-t border-gray-50 flex items-center justify-between text-xs font-semibold text-slate-600 bg-slate-50/50">
-          <div className="flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5 text-orange-500" />
-            <span>{recipe.preparationTime || "20"} mins</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <BarChart3 className="w-3.5 h-3.5 text-orange-500" />
-            <span>{recipe.difficultyLevel || "Medium"}</span>
-          </div>
+        {/* Card bottom footer content area container */}
+        <div className="mt-auto bg-slate-50/50 border-t border-gray-50 flex flex-col">
           
-          <button
-            onClick={handleLikeClick}
-            className={`flex items-center gap-1 rounded-md px-2 py-0.5 transition-colors border outline-hidden ${
-              isLiked 
-                ? "bg-rose-50 border-rose-100 text-rose-600" 
-                : "bg-slate-100/70 border-transparent text-slate-500 hover:bg-rose-50 hover:text-rose-600"
-            }`}
-          >
-            <Heart 
-              className={`w-3.5 h-3.5 transition-transform active:scale-125 ${isLiked ? "fill-rose-600 stroke-rose-600" : ""}`} 
-            />
-            <span>{likesCount}</span>
-          </button>
-        </Card.Footer>
+          {/* Metadata Grid Specs Row */}
+          <Card.Footer className="px-5 pt-3.5 pb-2.5 flex items-center justify-between text-xs font-semibold text-slate-600">
+            <div className="flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-orange-500" />
+              <span>{recipe.preparationTime || "20"} mins</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <BarChart3 className="w-3.5 h-3.5 text-orange-500" />
+              <span>{recipe.difficultyLevel || "Medium"}</span>
+            </div>
+            
+            <button
+              onClick={handleLikeClick}
+              className={`flex items-center gap-1 rounded-md px-2 py-0.5 transition-colors border outline-hidden ${
+                isLiked 
+                  ? "bg-rose-50 border-rose-100 text-rose-600" 
+                  : "bg-slate-100/70 border-transparent text-slate-500 hover:bg-rose-50 hover:text-rose-600"
+              }`}
+            >
+              <Heart 
+                className={`w-3.5 h-3.5 transition-transform active:scale-125 ${isLiked ? "fill-rose-600 stroke-rose-600" : ""}`} 
+              />
+              <span>{likesCount}</span>
+            </button>
+          </Card.Footer>
+
+          {/* ACTION BUTTON PANEL */}
+          <div className="px-5 pb-4 pt-1">
+            <button
+              onClick={handleFavoriteClick}
+              disabled={isFavoriting}
+              className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all duration-200 outline-hidden tracking-wide disabled:opacity-70 border ${
+                isFavorited 
+                  ? "bg-amber-500 border-amber-500 text-white hover:bg-amber-600 hover:border-amber-600 shadow-xs" 
+                  : "bg-white border-slate-200 text-slate-700 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-600"
+              }`}
+            >
+              <Bookmark className={`w-3.5 h-3.5 ${isFavorited ? "fill-white" : ""}`} />
+              <span>{isFavorited ? "Saved to Favorites" : "Add to Favorites"}</span>
+            </button>
+          </div>
+
+        </div>
 
       </Card>
     </Link>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Facebook, Instagram } from "lucide-react"; // 🌟 IMPORTED: Social icons
+import { FaFacebookF, FaInstagram } from "react-icons/fa6";
 
 const primaryLinks = [
   { label: "Recipes", href: "/recipes" },
@@ -19,15 +19,15 @@ const currentYear = new Date().getFullYear();
 
 export default function Footer() {
   return (
-    <footer className="w-full bg-white border-t border-gray-100 mt-auto py-8">
-      <div className="container mx-auto px-6 max-w-6xl">
+    /* 🌟 Updated to a light brand orange tint background with subtle styling */
+    <footer className="w-full bg-orange-50/60 border-t border-orange-100/50 mt-auto py-8">
+      <div className="container mx-auto px-6 max-w-6xl space-y-6">
 
-        {/* Top row: Responsive Stack -> Desktop Grid */}
-        {/* Adjusted grid system slightly to hold 4 distinct segments natively on desktop layout screens */}
-        <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_auto_auto] items-center justify-items-center md:justify-items-stretch gap-6 md:gap-8 pb-6 border-b border-gray-100">
+        {/* Top row: Stacked centered on mobile, perfectly aligned inline on desktop */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-6 border-b border-orange-100/60">
 
           {/* 1. Logo */}
-          <Link href="/" className="flex items-center shrink-0">
+          <Link href="/" className="flex items-center justify-center shrink-0">
             <Image
               src="/rhlogo2.png"
               alt="RecipeHub"
@@ -39,12 +39,12 @@ export default function Footer() {
           </Link>
 
           {/* 2. Primary Nav */}
-          <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 md:gap-8">
+          <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 md:gap-8">
             {primaryLinks.map((link) => (
               <li key={link.label}>
                 <Link
                   href={link.href}
-                  className="text-sm font-medium text-slate-500 transition-colors hover:text-orange-500 whitespace-nowrap"
+                  className="text-sm font-medium text-slate-600 transition-colors hover:text-orange-600 whitespace-nowrap"
                 >
                   {link.label}
                 </Link>
@@ -52,35 +52,35 @@ export default function Footer() {
             ))}
           </ul>
 
-          {/* 🌟 3. NEW FEATURE: Social Profile Connections Section */}
-          <div className="flex items-center justify-center gap-4 shrink-0 px-2">
+          {/* 3. Social Profile Connections */}
+          <div className="flex items-center justify-center gap-2 shrink-0">
             <a
               href="https://www.facebook.com/noor.hasan456"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200"
+              className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200"
               aria-label="Follow our Facebook community profile"
             >
-              <Facebook className="w-4 h-4 fill-transparent" />
+              <FaFacebookF className="w-4 h-4" />
             </a>
             <a
               href="https://www.instagram.com/noor.hasan456/"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-pink-600 hover:bg-pink-50 transition-all duration-200"
+              className="p-2 rounded-xl text-slate-500 hover:text-pink-600 hover:bg-pink-50 transition-all duration-200"
               aria-label="Follow our Instagram dynamic feed updates"
             >
-              <Instagram className="w-4 h-4" />
+              <FaInstagram className="w-4 h-4" />
             </a>
           </div>
 
           {/* 4. Legal Links */}
-          <ul className="flex items-center justify-center md:justify-end gap-5 shrink-0">
+          <ul className="flex items-center justify-center gap-5 shrink-0">
             {legalLinks.map((link) => (
               <li key={link.label}>
                 <Link
                   href={link.href}
-                  className="text-xs font-medium text-slate-400 transition-colors hover:text-slate-700"
+                  className="text-xs font-medium text-slate-500 transition-colors hover:text-slate-800"
                 >
                   {link.label}
                 </Link>
@@ -90,17 +90,17 @@ export default function Footer() {
 
         </div>
 
-        {/* Bottom row: copyright | tagline */}
-        <div className="flex flex-col sm:flex-row items-center justify-between text-center sm:text-left gap-3 pt-5">
-          <p className="text-xs text-slate-400">
+        {/* Bottom row: Center-aligned typography */}
+        <div className="flex flex-col items-center justify-center text-center gap-2 pt-1">
+          <p className="text-xs text-slate-500">
             &copy; {currentYear}{" "}
-            <span className="font-semibold text-slate-600">
-              Recipe<span className="text-orange-500">Hub</span>
+            <span className="font-bold text-slate-700">
+              Recipe<span className="text-orange-600">Hub</span>
             </span>
             . Built for the modern culinary community.
           </p>
 
-          <p className="text-xs text-slate-300 hidden sm:block">
+          <p className="text-[11px] font-medium text-slate-400">
             Made with care
           </p>
         </div>

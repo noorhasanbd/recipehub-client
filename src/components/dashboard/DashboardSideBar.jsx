@@ -32,6 +32,7 @@ export function DashboardSideBar({userRole}) {
     { icon: Users, label: "Manage User", href: "/dashboard/admin/manage-users" },
     { icon: BookOpen, label: "Manage Recipes", href: "/dashboard/admin/manage-recipes" },
     { icon: ShieldAlert, label: "Reports", href: "/dashboard/admin/reports" },
+    { icon: Heart, label: "My Favorites", href: "/dashboard/myfavorites" },
     { icon: Home, label: "Back to Home", href: "/" },
   ];
 
@@ -40,7 +41,7 @@ export function DashboardSideBar({userRole}) {
     { icon: LayoutDashboard, label: "Overview", href: "/dashboard/user/overview" },
     { icon: BookOpen, label: "My Recipes", href: "/dashboard/user/my-recipes" },
     { icon: PlusCircle, label: "Add Recipes", href: "/dashboard/user/add-recipe" },
-    { icon: Heart, label: "My Favorites", href: "/dashboard/user/myfavorites" },
+    { icon: Heart, label: "My Favorites", href: "/dashboard/myfavorites" },
     { icon: CreditCard, label: "My Purchased Recipes", href: "/dashboard/user/purchased-recipes" },
     { icon: User, label: "Profile", href: "/dashboard/my-profile" }, // Correct this path to profile if needed
     { icon: Home, label: "Back to Home", href: "/" },

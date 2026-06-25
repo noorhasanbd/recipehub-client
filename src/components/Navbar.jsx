@@ -8,13 +8,21 @@ import { authClient } from "@/app/lib/auth-client";
 import { useRouter } from "next/navigation";
 
 export default function Navbar() {
-  const { data: session, isPending } = authClient.useSession();
+  // 🌟 Using 'refresh' from Better-Auth to sync session cache state
+  const { data: session, isPending, refresh } = authClient.useSession();
   const user = session?.user;
   const userRole = user?.role;
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // 🌟 Force background synchronization when navbar component mounts
+  useEffect(() => {
+    if (typeof refresh === "function") {
+      refresh();
+    }
+  }, [refresh]);
 
   // Close user profile dropdown when clicking outside
   useEffect(() => {
@@ -50,10 +58,7 @@ export default function Navbar() {
     userRole === "admin"
       ? "/dashboard/admin/overview"
       : "/dashboard/user/overview";
-  const profileHref =
-    userRole === "admin"
-      ? "/dashboard/my-profile"
-      : "/dashboard/my-profile";
+  const profileHref = "/dashboard/my-profile";
 
   return (
     <nav className="sticky top-0 z-50 bg-white w-full border-b border-gray-100 py-3">
@@ -99,15 +104,19 @@ export default function Navbar() {
                   <div className="relative" ref={dropdownRef}>
                     <button
                       onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-white rounded-full transition-transform hover:scale-105"
+                      className="focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-white rounded-full transition-transform hover:scale-105 block"
                     >
-                      <Image
-                        src={user.image || "/default-avatar.png"}
-                        alt={user.name || "User"}
-                        width={36}
-                        height={36}
-                        className="rounded-full border border-gray-200 object-cover"
-                      />
+                      {/* Fixed Layout Constraints for external cloud avatars */}
+                      <div className="w-9 h-9 relative overflow-hidden rounded-full shrink-0 border border-gray-200 shadow-2xs">
+                        <Image
+                          src={user.image || "/default-avatar.png"}
+                          alt={user.name || "User"}
+                          fill
+                          sizes="36px"
+                          priority
+                          className="object-cover"
+                        />
+                      </div>
                     </button>
 
                     {/* DROPDOWN MENU PANEL */}
@@ -202,7 +211,7 @@ export default function Navbar() {
                       href="/auth/signin"
                       className="text-sm font-medium text-orange-500 transition-colors hover:text-orange-600"
                     >
-                      Sign Im
+                      Sign In
                     </Link>
                     <Link
                       href="/auth/signup"
@@ -278,13 +287,15 @@ export default function Navbar() {
               ) : user ? (
                 <>
                   <div className="flex items-center gap-3 pb-2 border-b border-gray-50">
-                    <Image
-                      src={user.image || "/default-avatar.png"}
-                      alt="User Avatar"
-                      width={40}
-                      height={40}
-                      className="rounded-full object-cover border border-gray-100"
-                    />
+                    <div className="w-10 h-10 relative overflow-hidden rounded-full shrink-0 border border-gray-100">
+                      <Image
+                        src={user.image || "/default-avatar.png"}
+                        alt="User Avatar"
+                        fill
+                        sizes="40px"
+                        className="object-cover"
+                      />
+                    </div>
                     <div className="flex flex-col">
                       <span className="text-slate-800 font-semibold text-sm">
                         {user.name}

@@ -1,23 +1,25 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Image, Clock } from "lucide-react";
+import { Plus, Trash2, Image as ImageIcon, Clock, Link2, Upload, Loader2 } from "lucide-react";
 import { authClient } from "@/app/lib/auth-client";
-// 🌟 THE FIX: Import your frontend Better Auth client instance
 
+// Securely pull the environment API key
+const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
 
 export default function RecipeForm({ initialData = null, onSubmit, onCancel }) {
-  // Check if we are modifying an existing recipe or staging a blank canvas
   const isEditMode = !!initialData;
 
-  // Track dynamic list configurations inside decoupled client arrays
   const [ingredients, setIngredients] = useState([""]);
   const [instructions, setInstructions] = useState([""]);
-  
-  // Local state to safely hold user session attributes on the client side
   const [currentUser, setCurrentUser] = useState(null);
 
-  // Fetch the active user session data cleanly on mount
+  // 🌟 Core state managers for the image selector toggle switch
+  const [recipeImage, setRecipeImage] = useState("");
+  const [imageInputMode, setImageInputMode] = useState("url"); // 'url' or 'upload'
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+
+  // Fetch active user session
   useEffect(() => {
     async function fetchUserSession() {
       const session = await authClient.getSession();
@@ -28,11 +30,51 @@ export default function RecipeForm({ initialData = null, onSubmit, onCancel }) {
     fetchUserSession();
   }, []);
 
-  // Pre-seed array contexts if data is supplied via editing wrappers
+  // Pre-seed arrays AND the image state if editing initial values
   useEffect(() => {
     if (initialData?.ingredients?.length) setIngredients(initialData.ingredients);
     if (initialData?.instructions?.length) setInstructions(initialData.instructions);
+    if (initialData?.recipeImage) setRecipeImage(initialData.recipeImage);
   }, [initialData]);
+
+  // ImgBB Upload Pipeline
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!IMGBB_API_KEY) {
+      alert("Missing NEXT_PUBLIC_IMGBB_API_KEY environment configuration variable.");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image file format.");
+      return;
+    }
+
+    setIsUploadingFile(true);
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const response = await fetch(`https://api.api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+
+      if (data.success && data.data?.url) {
+        setRecipeImage(data.data.url);
+      } else {
+        alert("Failed to parse response payload from cloud asset bucket.");
+      }
+    } catch (err) {
+      console.error("ImgBB background process failure:", err);
+      alert("Error sending image asset to ImgBB cloud cluster.");
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
 
   // Ingredient dynamic field mutators
   const handleAddIngredient = () => setIngredients([...ingredients, ""]);
@@ -58,13 +100,12 @@ export default function RecipeForm({ initialData = null, onSubmit, onCancel }) {
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
-    
     const formData = new FormData(e.target);
     
-    // Assembles your exact schema blueprint structure smoothly
     const payload = {
       recipeName: formData.get("recipeName"),
-      recipeImage: formData.get("recipeImage"),
+      // 🌟 Matches your state string value whether it was written or uploaded
+      recipeImage: recipeImage, 
       category: formData.get("category"),
       cuisineType: formData.get("cuisineType"),
       difficultyLevel: formData.get("difficultyLevel"),
@@ -72,18 +113,14 @@ export default function RecipeForm({ initialData = null, onSubmit, onCancel }) {
       ingredients: ingredients.filter(i => i.trim() !== ""),
       instructions: instructions.filter(i => i.trim() !== ""),
       
-      // Preserves state parameters instead of losing them on updates
       isFeatured: initialData ? initialData.isFeatured : false,
       status: initialData ? initialData.status : "Published",
       likesCount: initialData ? initialData.likesCount : 0,
 
-      // 🌟 THE CRITICAL SECURITY CORRECTION:
-      // Uses the active user profile data, falling back to admin only if no session exists.
       authorId: initialData?.authorId || currentUser?.id || "usr_admin_77",
       authorName: initialData?.authorName || currentUser?.name || "Chef Administrator",
       authorEmail: initialData?.authorEmail || currentUser?.email || "admin@recipehub.com",
 
-      // Pass down user session mapping to backend payload for validation
       clientUser: currentUser ? {
         id: currentUser.id,
         name: currentUser.name,
@@ -113,21 +150,83 @@ export default function RecipeForm({ initialData = null, onSubmit, onCancel }) {
           />
         </div>
 
-        <div className="w-full">
-          <label className="block font-semibold text-xs text-slate-700 uppercase tracking-wider pb-2">
-            Recipe Asset Image URL
+        {/* 🌟 REFACTOR: IMAGE INPUT TOGGLE MODULE */}
+        <div className="w-full space-y-2">
+          <label className="block font-semibold text-xs text-slate-700 uppercase tracking-wider">
+            Recipe Cover Image
           </label>
-          <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3.5 py-3 focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/10 transition-all bg-white">
-            <Image className="w-4 h-4 text-slate-400 shrink-0" />
-            <input 
-              type="url" 
-              required 
-              name="recipeImage" 
-              defaultValue={initialData?.recipeImage || ""}
-              placeholder="https://example.com/image.jpg"
-              className="grow text-sm bg-transparent outline-none w-full"
-            />
+          
+          {/* Segmented Control Buttons */}
+          <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl border border-slate-200/40">
+            <button
+              type="button"
+              onClick={() => setImageInputMode("url")}
+              className={`flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                imageInputMode === "url" 
+                  ? "bg-white text-slate-800 shadow-xs" 
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <Link2 className="w-3.5 h-3.5" /> Direct URL Link
+            </button>
+            <button
+              type="button"
+              onClick={() => setImageInputMode("upload")}
+              className={`flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                imageInputMode === "upload" 
+                  ? "bg-white text-slate-800 shadow-xs" 
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <Upload className="w-3.5 h-3.5" /> Local File Upload
+            </button>
           </div>
+
+          {/* Conditional Input UI Display Fields */}
+          {imageInputMode === "url" ? (
+            <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3.5 py-3 focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/10 transition-all bg-white animate-in fade-in duration-200">
+              <ImageIcon className="w-4 h-4 text-slate-400 shrink-0" />
+              <input 
+                type="url" 
+                required={!recipeImage} // Mandatory only if an asset does not exist yet
+                value={recipeImage}
+                onChange={(e) => setRecipeImage(e.target.value)}
+                placeholder="https://example.com/image.jpg"
+                className="grow text-sm bg-transparent outline-none w-full"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 animate-in fade-in duration-200">
+              <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 hover:border-gray-300 rounded-xl py-3 cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition-colors relative h-[46px]">
+                {isUploadingFile ? (
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <Loader2 className="w-4 h-4 animate-spin text-orange-500" />
+                    <span className="text-xs font-medium">Uploading to ImgBB...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <Upload className="w-4 h-4 text-slate-400" />
+                    <span className="text-xs font-medium">Choose file</span>
+                  </div>
+                )}
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  disabled={isUploadingFile}
+                  onChange={handleFileChange}
+                  className="hidden" 
+                />
+              </label>
+
+              {recipeImage && (
+                <img 
+                  src={recipeImage} 
+                  alt="Asset Preview" 
+                  className="w-12 h-[46px] object-cover rounded-xl border border-gray-200 shrink-0"
+                />
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -226,9 +325,10 @@ export default function RecipeForm({ initialData = null, onSubmit, onCancel }) {
         </button>
         <button 
           type="submit" 
-          className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm rounded-xl shadow-md shadow-orange-500/10 transition-all active:scale-98"
+          disabled={isUploadingFile}
+          className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white font-semibold text-sm rounded-xl shadow-md shadow-orange-500/10 transition-all active:scale-98"
         >
-          {isEditMode ? "Save Changes" : "Publish Recipe"}
+          {isUploadingFile ? "Uploading image..." : isEditMode ? "Save Changes" : "Publish Recipe"}
         </button>
       </div>
 

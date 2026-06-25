@@ -9,27 +9,33 @@ import {
   Edit3, 
   X, 
   Lock, 
-  Image, 
+  Image as ImageIcon, 
+  Link2, 
+  Upload, 
   ShieldCheck, 
   Loader2 
 } from "lucide-react";
 
-// Import the direct MongoDB Server Action we built for user metadata
 import { updateUserProfile } from "@/app/lib/actions/userActions";
 
+// 🌟 Securely pulls the API Key from your .env environment configurations
+const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY; 
+
 export default function MyProfile() {
-  // Use Better Auth's reactive session hook
   const { data: session, isPending: isSessionPending, refetch } = authClient.useSession();
   
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [profileImage, setProfileImage] = useState("");
-  // 🌟 Password state variables
+  
+  // Image Input Mode toggle state: 'url' or 'upload'
+  const [avatarInputMode, setAvatarInputMode] = useState("url");
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
-  // Sync state whenever the user session loads or changes
   useEffect(() => {
     if (!isSessionPending && session?.user) {
       setProfileName(session.user.name || "");
@@ -37,12 +43,54 @@ export default function MyProfile() {
     }
   }, [session, isSessionPending]);
 
+  // Async function handler to manage file transformations & ImgBB upload pipelines
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 🌟 Safety check: verify the environment key exists before calling the endpoint
+    if (!IMGBB_API_KEY) {
+      toast.error("ImgBB Key configuration is missing in environment variables.");
+      console.error("Missing NEXT_PUBLIC_IMGBB_API_KEY in your .env file.");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file format.");
+      return;
+    }
+
+    setIsUploadingFile(true);
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.data?.url) {
+        setProfileImage(data.data.url);
+        toast.success("Image uploaded successfully to ImgBB!");
+      } else {
+        throw new Error(data.error?.message || "Failed parsing ImgBB remote node assets.");
+      }
+    } catch (error) {
+      console.error("ImgBB upload runtime pipeline exception:", error);
+      toast.error("Cloud upload failed. Please verify API configuration schema.");
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
+
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     setIsUpdatingProfile(true);
     
     try {
-      // 1. Execute the secure Next.js Server Action for metadata updates
       const result = await updateUserProfile({
         name: profileName,
         image: profileImage,
@@ -52,7 +100,6 @@ export default function MyProfile() {
         throw new Error(result.error);
       }
 
-      // 2. 🌟 If a new password was typed, update it securely via Better Auth Client API
       if (newPassword.trim() !== "") {
         if (currentPassword.trim() === "") {
           throw new Error("Validation Error: Current password is required to set a new password.");
@@ -61,17 +108,14 @@ export default function MyProfile() {
         await authClient.changePassword({
           currentPassword: currentPassword,
           newPassword: newPassword,
-          revokeOtherSessions: true, // Optional security best-practice
+          revokeOtherSessions: true,
         });
       }
 
-      // Refresh the client-side session state cache
       await refetch();
-
       toast.success("Profile updated successfully!");
       setIsEditingProfile(false);
       
-      // Reset input fields
       setCurrentPassword("");
       setNewPassword("");
     } catch (error) {
@@ -194,22 +238,93 @@ export default function MyProfile() {
                 </div>
               </div>
 
-              {/* IMAGE URL */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Image Link URL
+              {/* TOGGLE BUTTON CONTAINER (URL vs UPLOAD) */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                  Profile Avatar Source
                 </label>
-                <div className="relative">
-                  <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="url"
-                    value={profileImage}
-                    onChange={(e) => setProfileImage(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-500 transition-all"
-                    placeholder="https://example.com/avatar.jpg"
-                  />
+                <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl border border-slate-200/40">
+                  <button
+                    type="button"
+                    onClick={() => setAvatarInputMode("url")}
+                    className={`flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                      avatarInputMode === "url" 
+                        ? "bg-white text-slate-800 shadow-xs" 
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    <Link2 className="w-3.5 h-3.5" /> Image Link URL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAvatarInputMode("upload")}
+                    className={`flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                      avatarInputMode === "upload" 
+                        ? "bg-white text-slate-800 shadow-xs" 
+                        : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    <Upload className="w-3.5 h-3.5" /> Upload File (ImgBB)
+                  </button>
                 </div>
               </div>
+
+              {/* DYNAMIC AVATAR INPUT FORM ACTIONS */}
+              {avatarInputMode === "url" ? (
+                /* MODE A: DIRECT LINK INPUT */
+                <div className="space-y-1.5 animate-in fade-in duration-200">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Image Link URL
+                  </label>
+                  <div className="relative">
+                    <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      type="url"
+                      value={profileImage}
+                      onChange={(e) => setProfileImage(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500/10 focus:border-slate-500 transition-all"
+                      placeholder="https://example.com/avatar.jpg"
+                    />
+                  </div>
+                </div>
+              ) : (
+                /* MODE B: DIRECT ASSET FILE UPLOADER */
+                <div className="space-y-1.5 animate-in fade-in duration-200">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Select Avatar File
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 hover:border-slate-300 rounded-xl py-4 cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition-colors relative">
+                      {isUploadingFile ? (
+                        <div className="flex flex-col items-center gap-1.5 text-slate-600">
+                          <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+                          <span className="text-xs font-medium">Uploading to cloud storage...</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1 text-slate-500">
+                          <Upload className="w-5 h-5 text-slate-400" />
+                          <span className="text-xs font-medium">Click to select local image file</span>
+                        </div>
+                      )}
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        disabled={isUploadingFile}
+                        onChange={handleFileChange}
+                        className="hidden" 
+                      />
+                    </label>
+                    
+                    {profileImage && (
+                      <img 
+                        src={profileImage} 
+                        alt="Preview" 
+                        className="w-14 h-14 object-cover rounded-xl border border-slate-200 shrink-0"
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
 
               <hr className="border-slate-100 my-2" />
 
@@ -255,7 +370,7 @@ export default function MyProfile() {
               <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={isUpdatingProfile}
+                  disabled={isUpdatingProfile || isUploadingFile}
                   className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl transition-all disabled:bg-slate-700 shadow-sm shadow-slate-900/10"
                 >
                   {isUpdatingProfile && <Loader2 className="w-4 h-4 animate-spin" />}
